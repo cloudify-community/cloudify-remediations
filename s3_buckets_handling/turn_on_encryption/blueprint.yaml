@@ -1,0 +1,61 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+description: >
+  This blueprint import AWS s3 bucket and enable encryption on it.
+
+imports:
+  - https://cloudify.co/spec/cloudify/6.2.0/types.yaml
+  - plugin:cloudify-terraform-plugin?version= >=0.15.0
+
+inputs:
+
+  bucket_name:
+    type: string
+    required: true
+
+  aws_region_name:
+    type: string
+    required: true
+
+  location:
+    type: string
+    default: https://github.com/ahmadiesa-abu/cfy_remediations/archive/refs/heads/master.zip
+
+  source_path:
+    type: string
+    default: 'terraform_modules/aws_s3_turn_on_encryption'
+
+node_templates:
+
+  terraform:
+    type: cloudify.nodes.terraform
+
+  cloud_resources:
+    type: cloudify.nodes.terraform.Module
+    properties:
+      resource_config:
+        source:
+          location: { get_input: location }
+        source_path: { get_input: source_path }
+        variables:
+          access_key: { get_secret: aws_access_key_id }
+          secret_key: { get_secret: aws_secret_access_key }
+          aws_region: { get_input: aws_region_name }
+          bucket_name : { get_input: bucket_name }
+        environment_variables:
+          TF_REGISTRY_CLIENT_TIMEOUT: "20"
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          implementation: tf.cloudify_tf.tasks.import_resource
+          inputs:
+            resource_address: 'aws_s3_bucket.bucket'
+            resource_id: { get_input: bucket_name }
+        start:
+          implementation: tf.cloudify_tf.tasks.apply
+        delete: {}
+
+
+    relationships:
+      - target: terraform
+        type: cloudify.terraform.relationships.run_on_host

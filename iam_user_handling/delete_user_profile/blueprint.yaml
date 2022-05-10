@@ -1,0 +1,61 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+description: >
+  This blueprint import AWS IAM user profile then deletes it.
+
+imports:
+  - https://cloudify.co/spec/cloudify/6.2.0/types.yaml
+  - plugin:cloudify-terraform-plugin?version= >=0.15.0
+
+inputs:
+
+  aws_iam_user:
+    type: string
+    required: true
+
+  aws_region_name:
+    type: string
+    required: true
+
+  location:
+    type: string
+    default: https://github.com/ahmadiesa-abu/cfy_remediations/archive/refs/heads/master.zip
+
+  source_path:
+    type: string
+    default: 'terraform_modules/aws_iam_userprofile'
+
+node_templates:
+
+  terraform:
+    type: cloudify.nodes.terraform
+
+  cloud_resources:
+    type: cloudify.nodes.terraform.Module
+    properties:
+      resource_config:
+        source:
+          location: { get_input: location }
+        source_path: { get_input: source_path }
+        variables:
+          access_key: { get_secret: aws_access_key_id }
+          secret_key: { get_secret: aws_secret_access_key }
+          aws_region: { get_input: aws_region_name }
+          iam_user : { get_input: aws_iam_user }
+        environment_variables:
+          TF_REGISTRY_CLIENT_TIMEOUT: "20"
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          implementation: tf.cloudify_tf.tasks.import_resource
+          inputs:
+            resource_address: 'aws_iam_user_login_profile.user_login_profile'
+            resource_id: { get_input: aws_iam_user }
+        start:
+          implementation: tf.cloudify_tf.tasks.destroy
+        delete: {}
+
+
+    relationships:
+      - target: terraform
+        type: cloudify.terraform.relationships.run_on_host

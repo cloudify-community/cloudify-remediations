@@ -1,0 +1,79 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+description: >
+  This blueprint import Azure virtual-machine to cloudify using Terraform
+  and enable workspace log analytics, oms OMSExtension and install DA on machine.
+
+imports:
+  - https://cloudify.co/spec/cloudify/6.2.0/types.yaml
+  - plugin:cloudify-terraform-plugin?version= >=0.15.0
+
+inputs:
+
+  resource_id:
+    type: string
+    required: true
+
+  vm_name:
+    type: string
+    required: true
+
+  vm_size:
+    type: string
+    required: true
+
+  resource_group_name:
+    type: string
+    required: true
+
+  region_name:
+    type: string
+    required: true
+
+  location:
+    type: string
+    default: https://github.com/ahmadiesa-abu/cfy_remediations/archive/refs/heads/master.zip
+
+  source_path:
+    type: string
+    default: 'terraform_modules/azure_vm_monitoring'
+
+
+node_templates:
+
+  terraform:
+    type: cloudify.nodes.terraform
+
+  cloud_resources:
+    type: cloudify.nodes.terraform.Module
+    properties:
+      resource_config:
+        source:
+          location: { get_input: location }
+        source_path: { get_input: source_path }
+        variables:
+          subscription_id: { get_secret: azure_subscription_id }
+          tenant_id: { get_secret: azure_tenant_id }
+          client_id: { get_secret: azure_client_id }
+          client_secret: { get_secret: azure_client_secret }
+          resource_group: { get_input: resource_group_name }
+          location: { get_input: region_name }
+          name: { get_input: vm_name }
+          vm_size: { get_input: vm_size }
+        environment_variables:
+          TF_REGISTRY_CLIENT_TIMEOUT: "20"
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          implementation: tf.cloudify_tf.tasks.import_resource
+          inputs:
+            resource_address: 'azurerm_virtual_machine.vm'
+            resource_id: { get_input: resource_id }
+        start:
+          implementation: tf.cloudify_tf.tasks.apply
+        delete: {}
+
+
+    relationships:
+      - target: terraform
+        type: cloudify.terraform.relationships.run_on_host
