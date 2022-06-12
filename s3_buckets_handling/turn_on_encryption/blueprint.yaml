@@ -19,7 +19,7 @@ inputs:
 
   location:
     type: string
-    default: https://github.com/ahmadiesa-abu/cfy_remediations/archive/refs/heads/master.zip
+    default: https://github.com/cloudify-community/cloudify-remediations/archive/refs/heads/master.zip
 
   source_path:
     type: string
